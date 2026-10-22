@@ -1266,3 +1266,112 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+@keyframes header-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes stamp-float {
+  0%,
+  100% {
+    transform: rotate(9deg) translateY(0);
+  }
+  50% {
+    transform: rotate(5deg) translateY(-5px);
+  }
+}
+
+.site-header {
+  animation: header-drop 650ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+.hero-stamp {
+  animation: stamp-float 7s ease-in-out 1s infinite;
+}
+
+.site-shell [data-reveal].reveal-ready {
+  opacity: 0;
+  transform: translateY(22px);
+  transition:
+    opacity 700ms cubic-bezier(0.2, 0.65, 0.3, 1),
+    transform 700ms cubic-bezier(0.2, 0.65, 0.3, 1);
+}
+
+.site-shell [data-reveal].reveal-ready.is-revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.hero-visual > img {
+  transform: scale(1.035);
+  transition: transform 1.6s cubic-bezier(0.2, 0.65, 0.3, 1);
+}
+
+.hero-visual.is-revealed > img {
+  transform: scale(1);
+}
+
+.story-grid .story-card:nth-child(2) {
+  transition-delay: 90ms;
+}
+
+.story-grid .story-card:nth-child(3) {
+  transition-delay: 180ms;
+}
+
+.story-grid .story-card:nth-child(4) {
+  transition-delay: 260ms;
+}
+
+.story-grid .story-card:nth-child(5) {
+  transition-delay: 340ms;
+}
+
+.story-grid .story-card:nth-child(6) {
+  transition-delay: 420ms;
+}
+
+.site-shell .button,
+.site-shell .header-cta,
+.site-shell .back-to-top,
+.site-shell .category-chip {
+  transition:
+    color 180ms ease,
+    background 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease;
+}
+
+.site-shell .button:hover,
+.site-shell .header-cta:hover {
+  transform: translateY(-2px);
+}
+
+.site-shell .back-to-top:hover {
+  transform: translateY(-3px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-header,
+  .hero-stamp {
+    animation: none !important;
+  }
+
+  .site-shell [data-reveal].reveal-ready {
+    opacity: 1;
+    transform: none;
+    transition: none !important;
+  }
+
+  .hero-visual > img {
+    transform: none;
+    transition: none !important;
+  }
+}
