@@ -1,5 +1,6 @@
-import { useState, type Dispatch, type SetStateAction } from 'react'
+import { useState, type ChangeEvent, type Dispatch, type FormEvent, type SetStateAction } from 'react'
 import type { SiteContent, Story } from './content'
+import logo from './assets/pramag-logo.png'
 import './Admin.css'
 
 type ContentField = {
@@ -82,6 +83,176 @@ const storyFields: { key: Exclude<keyof Story, 'id'>; label: string; multiline?:
 ]
 
 const groups = [...new Set(contentFields.map((field) => field.group))]
+
+export function AdminSignIn({
+  companyName,
+  heroImage,
+  logoImageUrl,
+  logoImageAlt,
+}: {
+  companyName: string
+  heroImage: string
+  logoImageUrl: string
+  logoImageAlt: string
+}) {
+  const [notice, setNotice] = useState('')
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setNotice('Sign-in is a visual prototype only. Credentials are not verified, and the admin area is still accessible at /admin.')
+  }
+
+  return (
+    <main className="admin-signin">
+      <section className="admin-signin-visual" aria-label="Pramag Foods">
+        <img src={heroImage} alt="" />
+        <div className="admin-signin-visual-shade" />
+        <a className="admin-signin-back" href="/">← Back to website</a>
+        <div className="admin-signin-brand">
+          <img src={logoImageUrl || logo} alt={logoImageAlt} />
+          <p>GOOD FOOD.<br />LOCAL ROOTS.</p>
+          <span>SAUSAGE PRODUCTION · MANTUKWA, SUNYANI</span>
+        </div>
+      </section>
+
+      <section className="admin-signin-panel">
+        <a className="admin-signin-mobile-back" href="/">← Back to website</a>
+        <div className="admin-signin-form-wrap">
+          <span className="admin-eyebrow">PRAMAG FOODS CONTENT STUDIO</span>
+          <h1>Welcome back.</h1>
+          <p className="admin-signin-intro">Sign in to continue to your admin workspace.</p>
+
+          <form className="admin-signin-form" onSubmit={handleSubmit}>
+            <label className="admin-field">
+              <span>Email address</span>
+              <input type="email" name="email" autoComplete="username" placeholder="you@example.com" required />
+            </label>
+            <label className="admin-field">
+              <span>Password</span>
+              <input type="password" name="password" autoComplete="current-password" placeholder="Enter your password" required />
+            </label>
+            <div className="admin-signin-options">
+              <label><input type="checkbox" name="remember" /> Remember me</label>
+              <span>Password help unavailable</span>
+            </div>
+            <button className="admin-signin-submit" type="submit">Sign in <span aria-hidden="true">→</span></button>
+          </form>
+
+          <p className="admin-signin-prototype" role="note">
+            Prototype only: this form does not authenticate users or protect <code>/admin</code>.
+          </p>
+          {notice && <p className="admin-signin-notice" role="status">{notice}</p>}
+        </div>
+        <footer className="admin-signin-footer">© {new Date().getFullYear()} {companyName}</footer>
+      </section>
+    </main>
+  )
+}
+
+function ImageEditor({
+  label,
+  value,
+  fallback,
+  onChange,
+}: {
+  label: string
+  value: string
+  fallback?: string
+  onChange: (value: string) => void
+}) {
+  const [uploadError, setUploadError] = useState('')
+  const [isUploading, setIsUploading] = useState(false)
+  const preview = value || fallback
+
+  async function handleUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0]
+    event.currentTarget.value = ''
+    if (!file) return
+    if (!file.type.startsWith('image/') && !/\.(jpe?g|png|webp|gif|svg)$/i.test(file.name)) {
+      setUploadError('Choose an image file.')
+      return
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      setUploadError('Choose an image smaller than 20 MB.')
+      return
+    }
+
+    setUploadError('')
+    setIsUploading(true)
+    try {
+      onChange(await prepareImage(file))
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : 'The image could not be uploaded.')
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  return (
+    <div className="admin-image-editor">
+      <div className="admin-image-preview">
+        {preview ? <img src={preview} alt={`${label} preview`} /> : <span>No image selected</span>}
+      </div>
+      <div className="admin-image-controls">
+        <input
+          aria-label={label}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder="Paste an image URL or upload a file"
+        />
+        <label className={isUploading ? 'admin-image-upload is-uploading' : 'admin-image-upload'}>
+          <input
+            type="file"
+            accept="image/*"
+            disabled={isUploading}
+            onChange={handleUpload}
+          />
+          <span>{isUploading ? 'Preparing image…' : 'Choose image'}</span>
+        </label>
+        <small>Image uploads are resized and saved in this browser.</small>
+        {uploadError && <small className="admin-image-error" role="alert">{uploadError}</small>}
+      </div>
+    </div>
+  )
+}
+
+function prepareImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const imageUrl = URL.createObjectURL(file)
+    const image = new Image()
+    image.onload = () => {
+      URL.revokeObjectURL(imageUrl)
+      const scale = Math.min(1, 1800 / Math.max(image.naturalWidth, image.naturalHeight))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale))
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale))
+      const context = canvas.getContext('2d')
+      if (!context) {
+        reject(new Error('Your browser could not prepare this image.'))
+        return
+      }
+      context.drawImage(image, 0, 0, canvas.width, canvas.height)
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          reject(new Error('Your browser could not compress this image.'))
+          return
+        }
+        const reader = new FileReader()
+        reader.onload = () => {
+          if (typeof reader.result === 'string') resolve(reader.result)
+          else reject(new Error('The prepared image could not be read.'))
+        }
+        reader.onerror = () => reject(new Error('The prepared image could not be read.'))
+        reader.readAsDataURL(blob)
+      }, 'image/webp', 0.82)
+    }
+    image.onerror = () => {
+      URL.revokeObjectURL(imageUrl)
+      reject(new Error('This image file could not be opened.'))
+    }
+    image.src = imageUrl
+  })
+}
 
 function Admin({
   content,
@@ -233,7 +404,7 @@ function Admin({
         {activeTab === 'page' && (
           <section className="admin-editor">
             <div className="admin-editor-intro">
-              <div><span className="admin-eyebrow">WEBSITE SETTINGS</span><h2>Everything visitors read.</h2><p>Update the site copy, links, contact details and image URLs. Use a new line in headings to control line breaks.</p></div>
+              <div><span className="admin-eyebrow">WEBSITE SETTINGS</span><h2>Everything visitors read.</h2><p>Update the site copy, links, contact details and images. Paste an image URL or upload a file, then preview it here. Use a new line in headings to control line breaks.</p></div>
               <a href="/" target="_blank" rel="noreferrer">Preview your changes ↗</a>
             </div>
             {groups.map((group) => (
@@ -241,15 +412,28 @@ function Admin({
                 <h3>{group}</h3>
                 <div className="admin-field-grid">
                   {contentFields.filter((field) => field.group === group).map((field) => (
-                    <label className={field.multiline ? 'admin-field is-wide' : 'admin-field'} key={field.key}>
-                      <span>{field.label}</span>
-                      {field.multiline ? (
-                        <textarea rows={field.key === 'metaDescription' || field.key === 'aboutBody' || field.key === 'heroDescription' ? 3 : 2} value={content[field.key]} onChange={(event) => updateField(field.key, event.target.value)} />
-                      ) : (
-                        <input value={content[field.key]} onChange={(event) => updateField(field.key, event.target.value)} />
-                      )}
-                      {field.hint && <small>{field.hint}</small>}
-                    </label>
+                    ['logoImageUrl', 'heroImage', 'rootsImage'].includes(field.key) ? (
+                      <div className="admin-field is-wide" key={field.key}>
+                        <span>{field.label}</span>
+                        <ImageEditor
+                          label={field.label}
+                          value={content[field.key]}
+                          fallback={field.key === 'logoImageUrl' ? logo : undefined}
+                          onChange={(value) => updateField(field.key, value)}
+                        />
+                        {field.hint && <small>{field.hint}</small>}
+                      </div>
+                    ) : (
+                      <label className={field.multiline ? 'admin-field is-wide' : 'admin-field'} key={field.key}>
+                        <span>{field.label}</span>
+                        {field.multiline ? (
+                          <textarea rows={field.key === 'metaDescription' || field.key === 'aboutBody' || field.key === 'heroDescription' ? 3 : 2} value={content[field.key]} onChange={(event) => updateField(field.key, event.target.value)} />
+                        ) : (
+                          <input value={content[field.key]} onChange={(event) => updateField(field.key, event.target.value)} />
+                        )}
+                        {field.hint && <small>{field.hint}</small>}
+                      </label>
+                    )
                   ))}
                 </div>
               </section>
@@ -273,15 +457,26 @@ function Admin({
               <div className="admin-story-form">
                 <div className="admin-story-form-heading"><div><span className="admin-eyebrow">STORY DETAILS</span><h2>Edit story</h2></div><button className="admin-delete-button" type="button" disabled={content.stories.length <= 1} onClick={deleteStory}>Delete story</button></div>
                 {storyFields.map((field) => (
-                  <label className="admin-field" key={field.key}>
-                    <span>{field.label}</span>
-                    {field.key === 'content' ? <small>Separate paragraphs with a blank line.</small> : null}
-                    {field.multiline ? (
-                      <textarea rows={field.key === 'content' ? 11 : 4} value={String(selectedStory[field.key])} onChange={(event) => updateStory(field.key, event.target.value)} />
-                    ) : (
-                      <input type={field.key === 'minutes' ? 'number' : 'text'} min={field.key === 'minutes' ? 1 : undefined} value={String(selectedStory[field.key])} onChange={(event) => updateStory(field.key, event.target.value)} />
-                    )}
-                  </label>
+                  field.key === 'image' ? (
+                    <div className="admin-field" key={field.key}>
+                      <span>{field.label}</span>
+                      <ImageEditor
+                        label={field.label}
+                        value={selectedStory.image}
+                        onChange={(value) => updateStory('image', value)}
+                      />
+                    </div>
+                  ) : (
+                    <label className="admin-field" key={field.key}>
+                      <span>{field.label}</span>
+                      {field.key === 'content' ? <small>Separate paragraphs with a blank line.</small> : null}
+                      {field.multiline ? (
+                        <textarea rows={field.key === 'content' ? 11 : 4} value={String(selectedStory[field.key])} onChange={(event) => updateStory(field.key, event.target.value)} />
+                      ) : (
+                        <input type={field.key === 'minutes' ? 'number' : 'text'} min={field.key === 'minutes' ? 1 : undefined} value={String(selectedStory[field.key])} onChange={(event) => updateStory(field.key, event.target.value)} />
+                      )}
+                    </label>
+                  )
                 ))}
                 <p className="admin-save-hint">Changes save automatically in this browser.</p>
               </div>

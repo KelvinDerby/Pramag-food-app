@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import Admin from './Admin'
+import Admin, { AdminSignIn } from './Admin'
 import { useSiteContent, type Story } from './content'
 import logo from './assets/pramag-logo.png'
 import './App.css'
@@ -20,6 +20,9 @@ function HeadingText({ text, highlightLast = false }: { text: string; highlightL
 
 function App() {
   const { content, setContent, storageError } = useSiteContent()
+  const adminPath = window.location.pathname.replace(/\/+$/, '')
+  const isAdmin = adminPath === '/admin'
+  const [showIntro, setShowIntro] = useState(() => !isAdmin)
   const [activeCategory, setActiveCategory] = useState('All stories')
   const [search, setSearch] = useState('')
   const [selectedStoryId, setSelectedStoryId] = useState<string | null>(null)
@@ -35,7 +38,9 @@ function App() {
   })
 
   useEffect(() => {
-    document.title = content.pageTitle
+    document.title = adminPath === '/admin/sign-in'
+      ? `Admin sign in | ${content.companyName}`
+      : content.pageTitle
     let description = document.querySelector<HTMLMetaElement>('meta[name="description"]')
     if (!description) {
       description = document.createElement('meta')
@@ -43,7 +48,7 @@ function App() {
       document.head.append(description)
     }
     description.content = content.metaDescription
-  }, [content.pageTitle, content.metaDescription])
+  }, [adminPath, content.companyName, content.pageTitle, content.metaDescription])
 
   useEffect(() => {
     if (!selectedStory) return
@@ -81,14 +86,42 @@ function App() {
     )
     elements.forEach((element) => observer.observe(element))
     return () => observer.disconnect()
-  }, [activeCategory, content.stories, search])
+  }, [activeCategory, content.stories, search, showIntro])
 
   const logoSource = content.logoImageUrl || logo
   const phoneLink = content.phone.replace(/[^\d+]/g, '')
   const locationLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${content.location}, Ghana`)}`
 
-  if (window.location.pathname.replace(/\/+$/, '') === '/admin') {
+  if (isAdmin) {
     return <Admin content={content} setContent={setContent} storageError={storageError} />
+  }
+
+  if (adminPath === '/admin/sign-in') {
+    return (
+      <AdminSignIn
+        companyName={content.companyName}
+        heroImage={content.heroImage}
+        logoImageUrl={content.logoImageUrl}
+        logoImageAlt={content.logoImageAlt}
+      />
+    )
+  }
+
+  if (showIntro) {
+    return (
+      <IntroLanding
+        companyName={content.companyName}
+        title={content.heroTitle}
+        description={content.heroDescription}
+        image={content.heroImage}
+        imageAlt={content.heroImageAlt}
+        location={content.location}
+        logo={logoSource}
+        logoAlt={content.logoImageAlt}
+        enterLabel={content.headerButton}
+        onEnter={() => setShowIntro(false)}
+      />
+    )
   }
 
   return (
@@ -327,6 +360,67 @@ function App() {
         </div>
       )}
     </div>
+  )
+}
+
+function IntroLanding({
+  companyName,
+  title,
+  description,
+  image,
+  imageAlt,
+  location,
+  logo,
+  logoAlt,
+  enterLabel,
+  onEnter,
+}: {
+  companyName: string
+  title: string
+  description: string
+  image: string
+  imageAlt: string
+  location: string
+  logo: string
+  logoAlt: string
+  enterLabel: string
+  onEnter: () => void
+}) {
+  return (
+    <main className="intro-landing" aria-labelledby="intro-title">
+      <div className="intro-photo">
+        <img src={image} alt={imageAlt} />
+        <div className="intro-photo-shade" />
+        <span className="intro-photo-caption">A TASTE OF MANTUKWA</span>
+        <div className="intro-seal" aria-hidden="true">
+          <span>ROOTED IN</span>
+          <strong>Sunyani</strong>
+          <span>MADE WITH CARE</span>
+        </div>
+      </div>
+
+      <div className="intro-copy">
+        <header className="intro-header">
+          <img src={logo} alt={logoAlt} />
+          <span>{location}</span>
+        </header>
+
+        <div className="intro-message">
+          <p className="intro-eyebrow"><span /> GOOD FOOD. LOCAL ROOTS.</p>
+          <h1 id="intro-title"><HeadingText text={title} highlightLast /></h1>
+          <p className="intro-description">{description}</p>
+          <button className="intro-enter" type="button" onClick={onEnter}>
+            {enterLabel}
+            <span aria-hidden="true">↗</span>
+          </button>
+        </div>
+
+        <footer className="intro-footer">
+          <span>{companyName}</span>
+          <span>SAUSAGE PRODUCTION · GHANA</span>
+        </footer>
+      </div>
+    </main>
   )
 }
 
